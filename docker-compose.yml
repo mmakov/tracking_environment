@@ -1,0 +1,57 @@
+version: "3" 
+networks: 
+  proxy: 
+    external: true 
+  internal: 
+    external: false
+
+services: 
+  traefik:
+    image: traefik:1.7
+    command: --api --docker   
+    container_name: traefik
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - proxy
+    labels:
+      traefik.frontend.rule: "Host:monitor.dtr-pet.local"
+      traefik.port: "8080"
+    volumes: 
+      - /home/mmakov/prj/tracking_environment/acme.json:/acme.json
+      - /home/mmakov/prj/tracking_environment/traefik.toml:/traefik.toml
+      - /var/run/docker.sock:/var/run/docker.sock      
+  jhub:
+    image: jetbrains/hub:2018.2.10218
+    depends_on: 
+      - traefik
+    container_name: jhub
+    networks:
+      - proxy
+    labels:
+      traefik.backend: "jetbrains-hub" 
+      traefik.frontend.rule: "Host:hub.dtr-pet.local"
+      traefik.docker.network: "proxy" 
+      traefik.port: "8080"
+    volumes:
+      - /data/hub/data/:/opt/hub/data
+      - /data/hub/conf/:/opt/hub/conf
+      - /data/hub/logs/:/opt/hub/logs            
+  jyoutrack:
+    image: jetbrains/youtrack:2018.2.44329
+    depends_on: 
+      - traefik
+      - jhub
+    container_name: jyoutrack
+    networks:
+      - proxy
+    labels:
+      traefik.backend: "jetbrains-youtrack" 
+      traefik.frontend.rule: "Host:youtrack.dtr-pet.local"
+      traefik.docker.network: "proxy" 
+      traefik.port: "8080"
+    volumes:
+      - /data/youtrack/data/:/opt/youtrack/data
+      - /data/youtrack/conf/:/opt/youtrack/conf
+      - /data/youtrack/logs/:/opt/youtrack/logs  
